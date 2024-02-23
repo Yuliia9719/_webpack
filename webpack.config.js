@@ -1,64 +1,149 @@
-const path = require("path");
-const HtmlWebpackPlugin = require("html-webpack-plugin");
-const { CleanWebpackPlugin } = require("clean-webpack-plugin");
+const path = require('path')
+const HtmlWebpackPlugin = require('html-webpack-plugin')
+const { CleanWebpackPlugin } = require('clean-webpack-plugin')
+const CopyWebpackPlugin = require('copy-webpack-plugin')
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
+const CssMinimizerWebpackPlugin = require('css-minimizer-webpack-plugin')
+const TerserPlugin = require('terser-webpack-plugin')
+const EslintWebpackPlugin = require('eslint-webpack-plugin')
+
+const isDev = process.env.NODE_ENV === 'development'
+const isProd = !isDev
+const optimization = () => {
+  return {
+    splitChunks: {
+      chunks: 'all'
+    },
+    minimizer: [new CssMinimizerWebpackPlugin(), new TerserPlugin()]
+  }
+}
+
+const filename = (ext) => (isDev ? `[name].${ext}` : `[name].[contenthash].${ext}`)
+
+const cssLoaders = (ext) => {
+  const loaders = [{ loader: MiniCssExtractPlugin.loader, options: { publicPath: '' } }, 'css-loader']
+  if (ext) {
+    loaders.push(ext)
+  }
+  return loaders
+}
+
+setPlugins = () => {
+  return [
+    new HtmlWebpackPlugin({ template: './index.html' }),
+    new CleanWebpackPlugin(),
+    new CopyWebpackPlugin({
+      patterns: [
+        {
+          from: path.resolve(__dirname, 'favicon.png'),
+          to: path.resolve(__dirname, 'dist')
+        }
+      ]
+    }),
+    new MiniCssExtractPlugin({
+      filename: filename('css')
+    }),
+    new EslintWebpackPlugin({
+      extensions: ['js'],
+      fix: true
+    })
+  ]
+}
+
+const jsLoaders = (extra) => {
+  const loaders = {
+    loader: 'babel-loader',
+    options: {
+      presets: ['@babel/preset-env']
+    }
+  }
+
+  if (extra) loaders.options.presets.push(extra)
+
+  return loaders
+}
 
 module.exports = {
-  context: path.resolve(__dirname, "src"),
-  mode: "development",
+  context: path.resolve(__dirname, 'src'),
+  mode: 'development',
   entry: {
-    main: "./index.js",
-    stat: "./statistics.js"
+    main: './index.jsx',
+    stat: './statistics.ts'
   },
+  target: 'web',
   output: {
-    path: path.resolve(__dirname, "dist"),
-    filename: "[name].[contenthash].bundle.js"
+    path: path.resolve(__dirname, 'dist'),
+    filename: filename('js')
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src"),
-      "@model": path.resolve(__dirname, "src/model"),
-      "@css": path.resolve(__dirname, "src/css"),
-      "@assets": path.resolve(__dirname, "src/assets")
+      '@': path.resolve(__dirname, 'src'),
+      '@model': path.resolve(__dirname, 'src/model'),
+      '@css': path.resolve(__dirname, 'src/css'),
+      '@assets': path.resolve(__dirname, 'src/assets')
     },
-    extensions: [".js", ".json", ".jsx", ".ts", ".tsx"]
+    extensions: ['.js', '.json', '.jsx', '.ts', '.tsx']
   },
-  optimization: {
-    splitChunks: {
-      chunks: "all"
-    }
+  optimization: optimization(),
+  devServer: {
+    port: 4200,
+    hot: false
   },
-  plugins: [
-    new HtmlWebpackPlugin({ template: "./index.html" }),
-    new CleanWebpackPlugin()
-  ],
+  devtool: isDev ? 'source-map' : false,
+  plugins: setPlugins(),
   module: {
     rules: [
       {
-        test: /\.css$/,
-        use: ["style-loader", "css-loader"]
+        test: /\.m?js$/,
+        exclude: /node_modules/,
+        use: jsLoaders()
       },
       {
-        test: /\.(png|svg|jpg|jpeg|gif)$/i,
-        type: "asset/resource",
+        test: /\.ts$/,
+        exclude: /node_modules/,
+        use: jsLoaders('@babel/preset-typescript')
+      },
+      {
+        test: /\.jsx$/,
+        exclude: /node_modules/,
+        use: jsLoaders('@babel/preset-react')
+      },
+
+      {
+        test: /\.css$/,
+        use: cssLoaders()
+      },
+      {
+        test: /\.less$/,
+        use: cssLoaders('less-loader')
+      },
+      {
+        test: /\.s[ac]ss$/,
+        use: cssLoaders('sass-loader')
+      },
+
+      {
+        test: /\.(png|svg|jpg|jpeg|webp|gif)$/i,
+        type: 'asset/resource',
         generator: {
-          filename: "assets/images/[name].[contenthash].[ext]"
+          filename: 'assets/images/[name].[contenthash].[ext]'
         }
       },
       {
         test: /\.(woff|woff2|ttf|eot)$/i,
-        type: "asset/resource",
+        type: 'asset/resource',
         generator: {
-          filename: "assets/fonts/[name].[contenthash].[ext]"
+          filename: 'assets/fonts/[name].[contenthash].[ext]'
         }
       },
       {
         test: /\.xml$/,
-        use: ["xml-loader"]
+        use: ['xml-loader']
       },
       {
         test: /\.csv$/,
-        use: ["csv-loader"]
+        use: ['csv-loader']
       }
     ]
   }
-};
+}

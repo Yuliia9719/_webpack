@@ -1,7 +1,7 @@
 import * as $ from "jquery";
 function createStatistics() {
   let counter = 0;
-  let isDestroyed = false;
+  let isDestroyed = false; 
   const listener = () => counter++;
   $(document).on("click", listener);
   return {
@@ -16,4 +16,4 @@ function createStatistics() {
     }
   };
 }
-window.statistics = createStatistics();
+window['statistics'] = createStatistics();
